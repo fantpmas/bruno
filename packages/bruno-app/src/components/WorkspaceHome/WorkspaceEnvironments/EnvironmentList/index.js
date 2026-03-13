@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import usePrevious from 'hooks/usePrevious';
 import useOnClickOutside from 'hooks/useOnClickOutside';
 import useDebounce from 'hooks/useDebounce';
+import useDragReorderList from 'hooks/useDragReorderList';
 import EnvironmentDetails from './EnvironmentDetails';
 import { IconDownload, IconUpload, IconSearch, IconPlus, IconCheck, IconX, IconFileAlert } from '@tabler/icons';
 import Button from 'ui/Button';
@@ -14,7 +15,8 @@ import DotEnvFileDetails from 'components/Environments/DotEnvFileDetails';
 import ColorBadge from 'components/ColorBadge';
 import { isEqual } from 'lodash';
 import { useDispatch, useSelector } from 'react-redux';
-import { addGlobalEnvironment, renameGlobalEnvironment, selectGlobalEnvironment, setGlobalEnvironmentDraft, clearGlobalEnvironmentDraft } from 'providers/ReduxStore/slices/global-environments';
+import { addGlobalEnvironment, renameGlobalEnvironment, selectGlobalEnvironment, resequenceGlobalEnvironments, setGlobalEnvironmentDraft, clearGlobalEnvironmentDraft } from 'providers/ReduxStore/slices/global-environments';
+import DraggableEnvironment from 'components/Environments/EnvironmentSettings/EnvironmentList/DraggableEnvironment';
 import {
   saveWorkspaceDotEnvVariables,
   saveWorkspaceDotEnvRaw,
@@ -71,6 +73,14 @@ const EnvironmentList = ({
   const [dotEnvNameError, setDotEnvNameError] = useState('');
   const dotEnvInputRef = useRef(null);
   const dotEnvCreateContainerRef = useRef(null);
+
+  const handleResequence = useCallback((reordered) => {
+    dispatch(resequenceGlobalEnvironments(reordered))
+      .catch(() => toast.error('Failed to reorder environments'));
+  }, [dispatch]);
+
+  const { displayItems: displayEnvironments, handleMove: handleMoveEnvironment, handleDrop: handleDropEnvironment }
+    = useDragReorderList(environments, handleResequence);
 
   const debouncedEnvSearchQuery = useDebounce(envSearchQuery, 300);
   const envSearchInputRef = useRef(null);
@@ -470,7 +480,7 @@ const EnvironmentList = ({
   };
 
   const filteredEnvironments
-    = environments?.filter((env) => env.name.toLowerCase().includes(searchText.toLowerCase())) || [];
+    = displayEnvironments?.filter((env) => env.name.toLowerCase().includes(searchText.toLowerCase())) || [];
 
   const selectedDotEnvData = dotEnvFiles.find((f) => f.filename === selectedDotEnvFile);
 
@@ -598,10 +608,14 @@ const EnvironmentList = ({
                 </div>
               )}
               <div className="environments-list">
-                {filteredEnvironments.map((env) => (
-                  <div
+                {filteredEnvironments.map((env, index) => (
+                  <DraggableEnvironment
                     key={env.uid}
-                    id={env.uid}
+                    uid={env.uid}
+                    index={index}
+                    onMoveEnvironment={handleMoveEnvironment}
+                    onDropEnvironment={handleDropEnvironment}
+                    dragType="global-environment"
                     className={classnames('environment-item', {
                       active: activeView === 'environment' && selectedEnvironment?.uid === env.uid,
                       renaming: renamingEnvUid === env.uid,
@@ -664,7 +678,7 @@ const EnvironmentList = ({
                         </div>
                       </>
                     )}
-                  </div>
+                  </DraggableEnvironment>
                 ))}
 
                 {isCreatingInline && (

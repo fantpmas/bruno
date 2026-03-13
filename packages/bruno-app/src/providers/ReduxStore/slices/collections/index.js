@@ -1,5 +1,5 @@
 import { parseQueryParams, buildQueryString as stringifyQueryParams } from '@usebruno/common/utils';
-import { uuid } from 'utils/common';
+import { uuid, compareBySeqThenName } from 'utils/common';
 import { find, map, forOwn, concat, filter, each, cloneDeep, get, set, findIndex } from 'lodash';
 import { createSlice } from '@reduxjs/toolkit';
 import { hexy as hexdump } from 'hexy';
@@ -2869,6 +2869,7 @@ export const collectionsSlice = createSlice({
           existingEnv.name = environment.name;
           existingEnv.variables = environment.variables;
           existingEnv.color = environment.color;
+          existingEnv.seq = environment.seq;
           /*
            Apply temporary (ephemeral) values only to variables that actually exist in the file. This prevents deleted temporaries from “popping back” after a save. If a variable is present in the file, we temporarily override the UI value while also remembering the on-disk value in persistedValue for future saves.
           */
@@ -2882,9 +2883,12 @@ export const collectionsSlice = createSlice({
               target.ephemeral = true;
             }
           });
+
+          // Re-sort after sequence update
+          collection.environments.sort(compareBySeqThenName);
         } else {
           collection.environments.push(environment);
-          collection.environments.sort((a, b) => a.name.localeCompare(b.name));
+          collection.environments.sort(compareBySeqThenName);
 
           const lastAction = collection.lastAction;
           if (lastAction && lastAction.type === 'ADD_ENVIRONMENT') {

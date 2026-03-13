@@ -212,6 +212,19 @@ const registerGlobalEnvironmentsIpc = (mainWindow, workspaceEnvironmentsManager)
     }
   });
 
+  ipcMain.handle('renderer:resequence-global-environments', async (event, { environmentsOrder, workspaceUid, workspacePath }) => {
+    try {
+      if (workspacePath && workspaceEnvironmentsManager) {
+        return await workspaceEnvironmentsManager.resequenceGlobalEnvironmentsByPath(workspacePath, { environmentsOrder });
+      }
+
+      globalEnvironmentsStore.resequenceGlobalEnvironments({ environmentsOrder });
+    } catch (error) {
+      console.error('Error in renderer:resequence-global-environments:', error);
+      return Promise.reject(error);
+    }
+  });
+
   ipcMain.handle('renderer:update-global-environment-color', async (event, { environmentUid, color, workspacePath }) => {
     try {
       if (workspacePath && workspaceEnvironmentsManager) {

@@ -262,6 +262,13 @@ export const sortByNameThenSequence = (items) => {
   return sortedItems.flat();
 };
 
+export const compareBySeqThenName = (a, b) => {
+  const aSeq = typeof a.seq === 'number' ? a.seq : Infinity;
+  const bSeq = typeof b.seq === 'number' ? b.seq : Infinity;
+  if (aSeq !== bSeq) return aSeq - bSeq;
+  return (a.name || '').localeCompare(b.name || '');
+};
+
 // Memory threshold to prevent crashes when decoding large buffers
 const LARGE_BUFFER_THRESHOLD = 50 * 1024 * 1024; // 50 MB
 

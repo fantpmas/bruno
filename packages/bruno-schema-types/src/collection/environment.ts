@@ -14,6 +14,7 @@ export interface Environment {
   name: string;
   variables: EnvironmentVariable[];
   color?: string | null;
+  seq?: number;
 }
 
 export type Environments = Environment[];

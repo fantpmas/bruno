@@ -79,6 +79,15 @@ class GlobalEnvironmentsStore {
 
     globalEnvironments = this.decryptGlobalEnvironmentVariables({ globalEnvironments });
 
+    // Merge sequence order from separate store key (keeps env objects
+    // free of unknown fields for backward compatibility with older Bruno).
+    const order = this.store.get('environmentsOrder', {});
+    globalEnvironments.forEach((env) => {
+      if (env?.uid && typeof order[env.uid] === 'number') {
+        env.seq = order[env.uid];
+      }
+    });
+
     return globalEnvironments;
   }
 
@@ -87,6 +96,10 @@ class GlobalEnvironmentsStore {
   }
 
   setGlobalEnvironments(globalEnvironments) {
+    // Strip `seq` before persisting — it's stored in a separate key
+    // for backward compatibility with older Bruno versions.
+    globalEnvironments = globalEnvironments.map(({ seq, ...env }) => env);
+
     globalEnvironments = this.filterValidEnvironments(globalEnvironments);
 
     globalEnvironments = this.encryptGlobalEnvironmentVariables({ globalEnvironments });
@@ -162,6 +175,11 @@ class GlobalEnvironmentsStore {
       this.setActiveGlobalEnvironmentUid(null);
     }
     this.setGlobalEnvironments(globalEnvironments);
+
+    // Clean up order entry
+    const order = this.store.get('environmentsOrder', {});
+    delete order[environmentUid];
+    this.store.set('environmentsOrder', order);
   }
 
   updateGlobalEnvironmentColor({ environmentUid, color }) {
@@ -171,6 +189,17 @@ class GlobalEnvironmentsStore {
       environment.color = color;
     }
     this.setGlobalEnvironments(globalEnvironments);
+  }
+
+  resequenceGlobalEnvironments({ environmentsOrder }) {
+    // Store order in a separate key so the environment objects stay
+    // free of the `seq` field — older Bruno versions use
+    // .noUnknown(true).strict() and would reject environments with it.
+    const order = this.store.get('environmentsOrder', {});
+    for (const { uid, seq } of environmentsOrder) {
+      order[uid] = seq;
+    }
+    this.store.set('environmentsOrder', order);
   }
 }
 

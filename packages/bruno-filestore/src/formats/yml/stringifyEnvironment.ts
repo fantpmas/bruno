@@ -43,12 +43,16 @@ const toOpenCollectionEnvironmentVariables = (variables: BrunoEnvironmentVariabl
 
 const stringifyEnvironment = (environment: BrunoEnvironment): string => {
   try {
-    const ocEnvironment: Environment = {
+    const ocEnvironment: Environment & { seq?: number } = {
       name: environment.name
     };
 
     if (environment.color) {
       ocEnvironment.color = environment.color;
+    }
+
+    if (typeof environment.seq === 'number') {
+      ocEnvironment.seq = environment.seq;
     }
 
     if (environment.variables?.length) {

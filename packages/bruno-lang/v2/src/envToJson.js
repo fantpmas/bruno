@@ -43,7 +43,8 @@ const grammar = ohm.grammar(`Bru {
 
   secretvars = "vars:secret" array
   vars = "vars" dictionary
-  color = "color:" any*
+  colorchar = ~nl any
+  color = "color:" colorchar*
 }`);
 
 const mapPairListToKeyValPairs = (pairList = []) => {

@@ -47,6 +47,10 @@ const parseEnvironment = (ymlString: string): BrunoEnvironment => {
       color: ocEnvironment.color || null
     };
 
+    if (typeof (ocEnvironment as any).seq === 'number') {
+      brunoEnvironment.seq = (ocEnvironment as any).seq;
+    }
+
     return brunoEnvironment;
   } catch (error) {
     console.error('Error parsing environment:', error);

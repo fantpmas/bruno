@@ -1,5 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { uuid } from 'utils/common/index';
+import { uuid, compareBySeqThenName } from 'utils/common/index';
 import { environmentSchema } from '@usebruno/schema';
 import { cloneDeep, has } from 'lodash';
 
@@ -14,7 +14,8 @@ export const globalEnvironmentsSlice = createSlice({
   initialState,
   reducers: {
     updateGlobalEnvironments: (state, action) => {
-      state.globalEnvironments = action.payload?.globalEnvironments;
+      state.globalEnvironments = action.payload?.globalEnvironments || [];
+      state.globalEnvironments.sort(compareBySeqThenName);
       state.activeGlobalEnvironmentUid = action.payload?.activeGlobalEnvironmentUid;
     },
     _addGlobalEnvironment: (state, action) => {
@@ -88,6 +89,16 @@ export const globalEnvironmentsSlice = createSlice({
       if (environmentUid) {
         state.globalEnvironments = state.globalEnvironments.map((env) => env?.uid == environmentUid ? { ...env, color } : env);
       }
+    },
+    _resequenceGlobalEnvironments: (state, action) => {
+      const { environmentsOrder } = action.payload;
+      const seqByUid = new Map(environmentsOrder.map(({ uid, seq }) => [uid, seq]));
+      for (const env of state.globalEnvironments) {
+        if (env && seqByUid.has(env.uid)) {
+          env.seq = seqByUid.get(env.uid);
+        }
+      }
+      state.globalEnvironments.sort(compareBySeqThenName);
     }
   }
 });
@@ -101,6 +112,7 @@ export const {
   _selectGlobalEnvironment,
   _deleteGlobalEnvironment,
   _updateGlobalEnvironmentColor,
+  _resequenceGlobalEnvironments,
   setGlobalEnvironmentDraft,
   clearGlobalEnvironmentDraft
 } = globalEnvironmentsSlice.actions;
@@ -315,6 +327,27 @@ export const globalEnvironmentsUpdateEvent = ({ globalEnvironmentVariables }) =>
       }))
       .then(() => dispatch(_saveGlobalEnvironment({ environmentUid, variables })))
       .then(resolve)
+      .catch(reject);
+  });
+};
+
+export const resequenceGlobalEnvironments = (reorderedEnvironments) => (dispatch, getState) => {
+  return new Promise((resolve, reject) => {
+    const { ipcRenderer } = window;
+    const state = getState();
+    const { workspaceUid, workspacePath } = getWorkspaceContext(state);
+
+    const environmentsOrder = reorderedEnvironments.map((env, index) => ({
+      uid: env.uid,
+      seq: index + 1
+    }));
+
+    ipcRenderer
+      .invoke('renderer:resequence-global-environments', { environmentsOrder, workspaceUid, workspacePath })
+      .then(() => {
+        dispatch(_resequenceGlobalEnvironments({ environmentsOrder }));
+        resolve();
+      })
       .catch(reject);
   });
 };

@@ -663,6 +663,38 @@ const registerRendererEventHandlers = (mainWindow, watcher) => {
     }
   });
 
+  // resequence environments
+  ipcMain.handle('renderer:resequence-environments', async (event, collectionPathname, environmentsToResequence) => {
+    try {
+      const format = getCollectionFormat(collectionPathname);
+      const envDirPath = path.join(collectionPathname, 'environments');
+
+      await Promise.all(environmentsToResequence.map(async (env) => {
+        const envFilePath = path.join(envDirPath, `${env.name}.${format}`);
+
+        let content;
+        try {
+          content = fs.readFileSync(envFilePath, 'utf8');
+        } catch (err) {
+          if (err.code === 'ENOENT') return;
+          throw err;
+        }
+
+        const envData = await parseEnvironment(content, { format });
+        envData.name = env.name;
+        envData.seq = env.seq;
+
+        const newContent = await stringifyEnvironment(envData, { format });
+        await writeFile(envFilePath, newContent);
+      }));
+
+      return true;
+    } catch (error) {
+      console.error('Error in resequence-environments:', error);
+      return Promise.reject(error);
+    }
+  });
+
   // Save .env file variables for collection
   ipcMain.handle('renderer:save-dotenv-variables', async (event, collectionPathname, variables, filename = '.env') => {
     try {

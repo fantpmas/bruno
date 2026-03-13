@@ -2,7 +2,9 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import usePrevious from 'hooks/usePrevious';
 import useOnClickOutside from 'hooks/useOnClickOutside';
 import useDebounce from 'hooks/useDebounce';
+import useDragReorderList from 'hooks/useDragReorderList';
 import EnvironmentDetails from './EnvironmentDetails';
+import DraggableEnvironment from './DraggableEnvironment';
 import { IconDownload, IconUpload, IconSearch, IconPlus, IconCheck, IconX, IconFileAlert } from '@tabler/icons';
 import Button from 'ui/Button';
 import StyledWrapper from './StyledWrapper';
@@ -18,6 +20,7 @@ import {
   addEnvironment,
   renameEnvironment,
   selectEnvironment,
+  resequenceEnvironments,
   saveDotEnvVariables,
   saveDotEnvRaw,
   createDotEnvFile,
@@ -472,8 +475,16 @@ const EnvironmentList = ({
     setDotEnvViewMode(mode);
   };
 
+  const handleResequence = useCallback((reordered) => {
+    dispatch(resequenceEnvironments(collection.uid, reordered))
+      .catch(() => toast.error('Failed to reorder environments'));
+  }, [dispatch, collection.uid]);
+
+  const { displayItems: displayEnvironments, handleMove: handleMoveEnvironment, handleDrop: handleDropEnvironment }
+    = useDragReorderList(environments, handleResequence);
+
   const filteredEnvironments
-    = environments?.filter((env) => env.name.toLowerCase().includes(searchText.toLowerCase())) || [];
+    = displayEnvironments?.filter((env) => env.name.toLowerCase().includes(searchText.toLowerCase())) || [];
 
   const selectedDotEnvData = dotEnvFiles.find((f) => f.filename === selectedDotEnvFile);
 
@@ -604,10 +615,13 @@ const EnvironmentList = ({
                 </div>
               )}
               <div className="environments-list">
-                {filteredEnvironments.map((env) => (
-                  <div
+                {filteredEnvironments.map((env, index) => (
+                  <DraggableEnvironment
                     key={env.uid}
-                    id={env.uid}
+                    uid={env.uid}
+                    index={index}
+                    onMoveEnvironment={handleMoveEnvironment}
+                    onDropEnvironment={handleDropEnvironment}
                     className={classnames('environment-item', {
                       active: activeView === 'environment' && selectedEnvironment?.uid === env.uid,
                       renaming: renamingEnvUid === env.uid,
@@ -670,7 +684,7 @@ const EnvironmentList = ({
                         </div>
                       </>
                     )}
-                  </div>
+                  </DraggableEnvironment>
                 ))}
 
                 {isCreatingInline && (

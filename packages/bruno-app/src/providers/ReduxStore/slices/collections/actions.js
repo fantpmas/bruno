@@ -1936,6 +1936,27 @@ export const saveEnvironment = (variables, environmentUid, collectionUid) => (di
   });
 };
 
+export const resequenceEnvironments = (collectionUid, reorderedEnvironments) => (dispatch, getState) => {
+  return new Promise((resolve, reject) => {
+    const state = getState();
+    const collection = findCollectionByUid(state.collections.collections, collectionUid);
+    if (!collection) {
+      return reject(new Error('Collection not found'));
+    }
+
+    const environmentsToResequence = reorderedEnvironments.map((env, index) => ({
+      name: env.name,
+      seq: index + 1
+    }));
+
+    const { ipcRenderer } = window;
+    ipcRenderer
+      .invoke('renderer:resequence-environments', collection.pathname, environmentsToResequence)
+      .then(resolve)
+      .catch(reject);
+  });
+};
+
 export const updateEnvironmentColor = (environmentUid, color, collectionUid) => (dispatch, getState) => {
   return new Promise((resolve, reject) => {
     const state = getState();

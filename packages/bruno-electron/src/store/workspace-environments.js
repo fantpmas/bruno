@@ -378,6 +378,43 @@ class GlobalEnvironmentsManager {
   async updateGlobalEnvironmentColorByPath(workspacePath, { environmentUid, color }) {
     return this.updateGlobalEnvironmentColor(workspacePath, environmentUid, color);
   }
+
+  async resequenceGlobalEnvironments(workspacePath, { environmentsOrder }) {
+    if (!workspacePath) {
+      throw new Error('Workspace path is required');
+    }
+
+    // Build a UID→file map once to avoid repeated directory scans
+    const environmentsDir = this.getEnvironmentsDir(workspacePath);
+    if (!fs.existsSync(environmentsDir)) return true;
+
+    const files = fs.readdirSync(environmentsDir);
+    const uidToFile = new Map();
+    for (const file of files) {
+      if (file.endsWith(ENV_FILE_EXTENSION)) {
+        const filePath = path.join(environmentsDir, file);
+        const fileUid = generateUidBasedOnHash(filePath);
+        uidToFile.set(fileUid, { filePath, name: file.slice(0, -ENV_FILE_EXTENSION.length) });
+      }
+    }
+
+    await Promise.all(environmentsOrder.map(async ({ uid, seq }) => {
+      const envFile = uidToFile.get(uid);
+      if (!envFile) return;
+
+      const environment = await this.parseEnvironmentFile(envFile.filePath, workspacePath);
+      environment.seq = seq;
+
+      const content = await stringifyEnvironment(environment, { format: 'yml' });
+      await writeFile(envFile.filePath, content);
+    }));
+
+    return true;
+  }
+
+  async resequenceGlobalEnvironmentsByPath(workspacePath, params) {
+    return this.resequenceGlobalEnvironments(workspacePath, params);
+  }
 }
 
 const globalEnvironmentsManager = new GlobalEnvironmentsManager();
